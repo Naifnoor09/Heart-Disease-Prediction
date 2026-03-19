@@ -60,10 +60,6 @@ if st.button("🔍 Predict"):
         st.divider()
         st.subheader("Prediction Result")
 
-        if result["heart_disease_prediction"] == 1:
-            st.error(f"❤️‍🩹 {result['result']}")
-        else:
-            st.success(f"💚 {result['result']}")
 
         st.metric(label="Disease Probability", value=f"{result['disease_probability'] * 100:.2f}%")
         
@@ -74,6 +70,8 @@ if st.button("🔍 Predict"):
         top_2 = sorted(risk_factors, key=risk_factors.get, reverse=True)[:2]
         top_2_plain = [FEATURE_NAMES.get(f, f) for f in top_2]
         
+        prob = result["disease_probability"] * 100
+
         if result["heart_disease_prediction"] == 1:
             if len(top_2_plain) >= 2:
                 summary = f"⚠️ **{top_2_plain[0]}** and **{top_2_plain[1]}** are the biggest contributors to this patient's risk score."
@@ -121,8 +119,11 @@ if st.button("🔍 Predict"):
         st.subheader("🔍 Why this prediction?")
         
         shap_data = result["shap_values"]
-        features = [FEATURE_NAMES.get(str(k), str(k)) for k in shap_data.keys()]
-        values = [float(v) for v in shap_data.values()]
+        
+        # Sorting by absolute impact 
+        sorted_shap = sorted(shap_data.items(), key=lambda x: abs(x[1]))
+        features = [FEATURE_NAMES.get(str(k), str(k)) for k, v in sorted_shap]
+        values = [float(v) for k, v in sorted_shap]
         colors = ["red" if v > 0 else "green" for v in values]
         
         fig_shap = go.Figure(go.Bar(
@@ -143,7 +144,7 @@ if st.button("🔍 Predict"):
         
         
         st.warning("""
-        ⚕️ **Medical Disclaimer**  
+        **⚠️ Medical Disclaimer**  
         This tool is for **screening purposes only** and does not constitute a medical diagnosis.  
         Please consult a qualified cardiologist for proper clinical evaluation and treatment.
         """)

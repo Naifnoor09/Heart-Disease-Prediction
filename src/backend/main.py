@@ -82,9 +82,10 @@ def health():
 def predict(patient: PatientDetails):
     try:
         df = pd.DataFrame([patient.model_dump()])
-
-        prediction = model.predict(df)[0]
+        
+        THRESHOLD = 0.3
         probability = model.predict_proba(df)[0][1]
+        prediction = 1 if probability >= THRESHOLD else 0
         explainer = shap.KernelExplainer(
             lambda x: model.predict_proba(pd.DataFrame(x, columns=df.columns))[:, 1],
             background_data)
