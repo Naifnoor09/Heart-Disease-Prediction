@@ -1,5 +1,24 @@
 import streamlit as st
 import requests 
+import plotly.graph_objects as go
+
+
+# Feature name mapping
+FEATURE_NAMES = {
+    "age":      "Age",
+    "sex":      "Gender",
+    "cp":       "Chest Pain Type",
+    "trestbps": "Resting Blood Pressure",
+    "chol":     "Serum Cholesterol",
+    "fbs":      "Fasting Blood Sugar",
+    "restecg":  "Resting ECG Results",
+    "thalach":  "Maximum Heart Rate",
+    "exang":    "Exercise Induced Angina",
+    "oldpeak":  "ST Depression",
+    "slope":    "ST Slope",
+    "ca":       "Blocked Vessels",
+    "thal":     "Thalassemia"
+}
 
 st.title("🫀 Heart Disease Predictor")
 st.markdown("Fill in the patient details below and click **Predict** to get the result.")
@@ -47,6 +66,88 @@ if st.button("🔍 Predict"):
             st.success(f"💚 {result['result']}")
 
         st.metric(label="Disease Probability", value=f"{result['disease_probability'] * 100:.2f}%")
+        
+        shap_data = result["shap_values"]
+        
+        # Finding top 2 risk factors (highest positive SHAP values
+        risk_factors = {k: v for k, v in shap_data.items() if v > 0}
+        top_2 = sorted(risk_factors, key=risk_factors.get, reverse=True)[:2]
+        top_2_plain = [FEATURE_NAMES.get(f, f) for f in top_2]
+        
+        if result["heart_disease_prediction"] == 1:
+            if len(top_2_plain) >= 2:
+                summary = f"⚠️ **{top_2_plain[0]}** and **{top_2_plain[1]}** are the biggest contributors to this patient's risk score."
+            elif len(top_2_plain) == 1:
+                summary = f"⚠️ **{top_2_plain[0]}** is the biggest contributor to this patient's risk score."
+            else:
+                summary = "⚠️ Multiple factors are contributing to this patient's risk score."
+        else:
+            summary = "✅ No major risk factors detected. Patient shows healthy clinical indicators."
+
+        st.info(summary)
+
+        
+        prob = result["disease_probability"] * 100
+        if prob < 30:
+            risk_level = "Low Risk"
+            color = "green"
+        elif prob < 60:
+            risk_level = "Medium Risk"
+            color = "orange"
+        else:
+            risk_level = "High Risk"
+            color = "red"
+            
+            
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number",
+            value=prob,
+            number={"suffix": "%"},
+            title={"text": f"Risk Level: {risk_level}"},
+            gauge={
+                "axis" : {"range" : [0,100]},
+                "bar" : {"color": color},
+                "steps" : [
+                    {"range": [0, 30],   "color": "#d4edda"},
+                    {"range": [30, 60],  "color": "#fff3cd"},
+                    {"range": [60, 100], "color": "#f8d7da"},
+                ],
+            }
+        ))
+        
+        st.plotly_chart(fig_gauge, use_container_width=True)
+        
+        
+        st.subheader("🔍 Why this prediction?")
+        
+        shap_data = result["shap_values"]
+        features = [FEATURE_NAMES.get(str(k), str(k)) for k in shap_data.keys()]
+        values = [float(v) for v in shap_data.values()]
+        colors = ["red" if v > 0 else "green" for v in values]
+        
+        fig_shap = go.Figure(go.Bar(
+            x=values,
+            y=features,
+            orientation="h",
+            marker_color=colors
+        ))
+        
+        fig_shap.update_layout(
+            xaxis_title="Impact on Prediction",
+            yaxis_title = "Feature",
+            height = 400
+        )
+        
+        st.plotly_chart(fig_shap, use_container_width=True)
+        st.caption("🔴 Red = increases heart disease risk  |  🟢 Green = decreases risk")
+        
+        
+        st.warning("""
+        ⚕️ **Medical Disclaimer**  
+        This tool is for **screening purposes only** and does not constitute a medical diagnosis.  
+        Please consult a qualified cardiologist for proper clinical evaluation and treatment.
+        """)
+        
 
     except Exception as e:
         st.error(f"API Error: {str(e)}")

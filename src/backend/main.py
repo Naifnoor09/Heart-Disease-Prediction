@@ -1,10 +1,12 @@
 import joblib
 import pandas as pd
+import numpy as np
 from pydantic import BaseModel, Field
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from typing import Annotated
 import os
+import shap 
 
 app = FastAPI(
     title="Heart Disease Prediction API",
@@ -24,6 +26,14 @@ try:
 except Exception as e:
     raise RuntimeError(f"Failed to load model: {e}")
 
+# Background loading for shap comparison 
+BACKGROUND_PATH  = os.path.join(BASE_DIR, "data", "shap_background.csv")
+
+if not os.path.exists(BACKGROUND_PATH):
+    raise RuntimeError(f"Background data not found at {BACKGROUND_PATH}")
+
+background_data = pd.read_csv(BACKGROUND_PATH)
+    
 
 # Input Schema
 class PatientDetails(BaseModel):
@@ -47,6 +57,7 @@ class PredictionResponse(BaseModel):
     heart_disease_prediction: int
     disease_probability: float
     result: str
+    shap_values: dict 
 
 # Main Page
 @app.get("/", response_class=HTMLResponse)
@@ -74,11 +85,17 @@ def predict(patient: PatientDetails):
 
         prediction = model.predict(df)[0]
         probability = model.predict_proba(df)[0][1]
+        explainer = shap.KernelExplainer(
+            lambda x: model.predict_proba(pd.DataFrame(x, columns=df.columns))[:, 1],
+            background_data)
+        shap_vals = explainer.shap_values(df)
+        feature_impact = dict(zip(df.columns, shap_vals[0].tolist()))
 
         return PredictionResponse(
             heart_disease_prediction=int(prediction),
             disease_probability=round(float(probability), 4),
-            result="Heart Disease Detected" if prediction == 1 else "No Heart Disease"
+            result="Heart Disease Detected" if prediction == 1 else "No Heart Disease",
+            shap_values=feature_impact
         )
 
     except Exception as e:
@@ -86,3 +103,4 @@ def predict(patient: PatientDetails):
             status_code=500,
             detail=f"Prediction failed: {str(e)}"
         )
+        
