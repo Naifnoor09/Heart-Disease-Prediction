@@ -1,19 +1,10 @@
-# Web Framework
 fastapi==0.115.0
 uvicorn==0.30.6
-
-# Data & ML
 pandas==2.2.2
-scikit-learn==1.5.1
-joblib==1.4.2
-xgboost==2.1.1
-numpy==1.26.4
-
-# Dashboard
+scikit-learn==1.8.0
 streamlit==1.38.0
-
-# Validation
-pydantic==2.9.2
-
-# HTTP
+joblib==1.4.2
+numpy==1.26.4
+shap==0.46.0
+plotly==5.24.1
 requests==2.32.3
