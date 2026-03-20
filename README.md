@@ -208,4 +208,3 @@ streamlit run app.py
 ## 👤 Author
 
 **Mohammad Naif** — Cool Data Science Undergrad Student  
-Building towards a career in Agentic AI Engineering 🚀
